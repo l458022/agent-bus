@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: node ${{ matrix.node }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: ['18', '20', '22']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # 零依赖，没有 lockfile 也就没有 npm ci。
+      - name: 版本
+        run: node --version && npm --version
+
+      - name: 全量测试
+        run: npm test
+
+      # 测试跑的是库，这一步跑的是「用户真会敲的那几条命令」，
+      # 顺带证明 CLI 在三个平台的路径/编码上没崩。
+      - name: 冒烟
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI="$GITHUB_WORKSPACE/bin/cli.mjs"
+          rm -rf "$RUNNER_TEMP/smoke" && mkdir -p "$RUNNER_TEMP/smoke"
+          cd "$RUNNER_TEMP/smoke"
+
+          node "$CLI" init --name smoke
+          node "$CLI" join alice --role 甲方
+          node "$CLI" join bob --role 乙方
+
+          node "$CLI" send bob --peer alice -s "字段改完了" -b "user.id 从 int 变 string"
+          node "$CLI" recv --peer bob --json | grep -q "字段改完了"
+
+          node "$CLI" state bob --peer bob --phase blocked --blockers "等接口定稿"
+          node "$CLI" state bob --peer bob --json | grep -q '"phase":"blocked"'
+
+          node "$CLI" group create pipeline
+          node "$CLI" group add pipeline alice
+          node "$CLI" group add pipeline bob
+          node "$CLI" send '#pipeline' --peer alice -s "广播"
+          node "$CLI" recv --peer bob --json | grep -q "广播"
+
+          node "$CLI" log | grep -q "\[态\]"
+          node "$CLI" doctor

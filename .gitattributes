@@ -1,0 +1,8 @@
+# 仓库内一律 LF —— Node / git 在三个平台上都按 LF 存、按 LF 取，
+# 避免 Windows 上 checkout 出 CRLF 再提交回去产生的假 diff。
+* text=auto eol=lf
+
+# Windows 批处理必须 CRLF，否则 cmd 会把行尾吃进参数里。
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf

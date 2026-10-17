@@ -1,0 +1,11 @@
+node_modules/
+*.tgz
+*.log
+.DS_Store
+
+# 「这台机器上我是谁」，不是项目配置 —— 提交它会让别人的默认身份被你覆盖。
+.bus-peer
+
+# 示例跑出来的东西：总线数据、渲染产物、生成的 OpenFilm 工程
+examples/*/.agent-bus/
+examples/*/out/

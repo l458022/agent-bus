@@ -1,0 +1,45 @@
+{
+  "name": "agent-bus",
+  "version": "0.1.0",
+  "description": "让一台机器上的几个 agent 真的能一起干活 —— 一个目录就是一条总线",
+  "keywords": [
+    "agent",
+    "multi-agent",
+    "mcp",
+    "message-bus",
+    "handoff"
+  ],
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "agent-bus": "bin/cli.mjs",
+    "agent-bus-mcp": "bin/mcp.mjs"
+  },
+  "exports": {
+    ".": "./src/index.mjs"
+  },
+  "files": [
+    "src",
+    "bin",
+    "examples",
+    "PROTOCOL.md",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OWNER/agent-bus.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OWNER/agent-bus/issues"
+  },
+  "homepage": "https://github.com/OWNER/agent-bus#readme"
+}
