@@ -10,9 +10,19 @@
 没有服务器，没有守护进程，没有端口，没有账号。一个目录，一堆 JSON 文件。
 你在资源管理器里就能看见它们说了什么，备份是 `cp -r`，调试是 `cat`，回放是 `ls`。
 
+## 装
+
+这个包**没有发到 npm registry**，从 GitHub 直接装：
+
 ```bash
-npx agent-bus init
-npx agent-bus join alice --role "写前端"
+npm i -g github:l458022/agent-bus     # 装到全局，之后文中示例都写 agent-bus
+# 或者完全不装，一次性跑：
+npx github:l458022/agent-bus --help
+```
+
+```bash
+agent-bus init
+agent-bus join alice --role "写前端"
 ```
 
 ---
@@ -48,7 +58,7 @@ agent-bus 只赌一件事：**你的几个 agent 共享一块磁盘**。赌赢�
 
 ```bash
 cd ~/projects/my-thing
-npx agent-bus init --name my-thing
+agent-bus init --name my-thing
 ```
 
 这会生成：
@@ -63,16 +73,16 @@ my-thing/
 ```
 
 `bus.json` 是根标记。**从任何子目录跑命令都能找到它**（往上找），所以
-`cd web && npx agent-bus send api ...` 和 `cd ~/projects/my-thing && ...` 是同一件事。
+`cd web && agent-bus send api ...` 和 `cd ~/projects/my-thing && ...` 是同一件事。
 
 ### 2. 登记两边
 
 ```bash
 # 终端 A（前端项目）
-npx agent-bus join web --role "Vite + React，负责 overlay 编辑器"
+agent-bus join web --role "Vite + React，负责 overlay 编辑器"
 
 # 终端 B（后端项目）
-npx agent-bus join api --role "Node 服务，负责渲染队列"
+agent-bus join api --role "Node 服务，负责渲染队列"
 ```
 
 `join` 会写一个 `.bus-peer` 文件记住「我是谁」，之后不带 `--peer` 也知道自己是谁。
@@ -81,10 +91,10 @@ npx agent-bus join api --role "Node 服务，负责渲染队列"
 
 ```bash
 # 终端 A
-npx agent-bus send api -s "接口字段改了" -b "overlay 的 createdAt 从秒改成毫秒了，别按秒解析。"
+agent-bus send api -s "接口字段改了" -b "overlay 的 createdAt 从秒改成毫秒了，别按秒解析。"
 
 # 终端 B
-npx agent-bus recv
+agent-bus recv
 ```
 
 ```
@@ -100,10 +110,10 @@ npx agent-bus recv
 
 ```bash
 # A 问
-npx agent-bus ask api -s "迁移跑完了吗" -b "我这边要发版。"
+agent-bus ask api -s "迁移跑完了吗" -b "我这边要发版。"
 
 # B 答（用 ask 打出来的那个 id）
-npx agent-bus answer 20261018T034512Z-a1b2c3d4 -s "还得 10 分钟" -b "先别发。"
+agent-bus answer 20261018T034512Z-a1b2c3d4 -s "还得 10 分钟" -b "先别发。"
 ```
 
 `ask` 有 TTL（默认 24 小时）。过期了不会自动撤回，只是 `recv` 时会被跳过 ——
@@ -156,9 +166,9 @@ npx agent-bus answer 20261018T034512Z-a1b2c3d4 -s "还得 10 分钟" -b "先别�
 每个参与者有一个 `state`。这是**单一事实源**，覆盖写，永远只有最新。
 
 ```bash
-npx agent-bus state --phase working --now "在跑 500 张卡片的渲染"
-npx agent-bus state api          # 看别人
-npx agent-bus list               # 一次看全
+agent-bus state --phase working --now "在跑 500 张卡片的渲染"
+agent-bus state api          # 看别人
+agent-bus list               # 一次看全
 ```
 
 ```
@@ -174,9 +184,9 @@ web       idle        —                               刚刚
 ## 组：让广播有作用域
 
 ```bash
-npx agent-bus group create overlay-pipeline
-npx agent-bus group add overlay-pipeline web api render
-npx agent-bus send '#overlay-pipeline' -s "契约 v2 定了"
+agent-bus group create overlay-pipeline
+agent-bus group add overlay-pipeline web api render
+agent-bus send '#overlay-pipeline' -s "契约 v2 定了"
 ```
 
 广播**只存一份**（不是给每个成员复制一份），靠每个成员自己的游标推进。
@@ -185,8 +195,8 @@ npx agent-bus send '#overlay-pipeline' -s "契约 v2 定了"
 公告板是 append-only 的，给「这个组的结论」用：
 
 ```bash
-npx agent-bus board overlay-pipeline -m "接点格式定为 OverlayDoc v1，不再改。"
-npx agent-bus board overlay-pipeline      # 读
+agent-bus board overlay-pipeline -m "接点格式定为 OverlayDoc v1，不再改。"
+agent-bus board overlay-pipeline      # 读
 ```
 
 ---
@@ -239,21 +249,29 @@ npx agent-bus board overlay-pipeline      # 读
 
 CLI 是给人用的。**agent 用 MCP**，因为工具描述会进模型上下文。
 
-`.mcp.json` / 宿主的 MCP 配置：
+`.mcp.json` / 宿主的 MCP 配置。**指向装了包的那个 bin 文件**，别写 `agent-bus-mcp`
+（Windows 上是 `.cmd` shim，有些客户端不走 shell 会找不到）：
 
 ```json
 {
   "mcpServers": {
     "agent-bus": {
       "command": "node",
-      "args": ["/绝对路径/agent-bus/bin/mcp.mjs"],
-      "env": {}
+      "args": [
+        "/绝对路径/agent-bus/bin/mcp.mjs",
+        "--root", "/绝对路径/你的项目",
+        "--peer", "me"
+      ]
     }
   }
 }
 ```
 
+`npm root -g` 能告诉你全局装到哪了；也可以用 `npx github:l458022/agent-bus` 那种方式
+clone 一份下来直接指过去。
+
 `--peer` 决定「这个 server 代表谁说话」；不给就按 `.bus-peer` 或工作目录名推。
+`--root` 不给就按进程 cwd 往上找 `bus.json`。
 一个 agent 一个 server 实例，各自带自己的 `--peer`。
 
 八个工具：
