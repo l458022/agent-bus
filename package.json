@@ -36,10 +36,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OWNER/agent-bus.git"
+    "url": "git+https://github.com/l458022/agent-bus.git"
   },
   "bugs": {
-    "url": "https://github.com/OWNER/agent-bus/issues"
+    "url": "https://github.com/l458022/agent-bus/issues"
   },
-  "homepage": "https://github.com/OWNER/agent-bus#readme"
+  "homepage": "https://github.com/l458022/agent-bus#readme"
 }
