@@ -31,30 +31,42 @@ jobs:
         run: npm test
 
       # 测试跑的是库，这一步跑的是「用户真会敲的那几条命令」，
-      # 顺带证明 CLI 在三个平台的路径/编码上没崩。
+      # 顺带证明 CLI 在三个平台的路径与编码上没崩。
       - name: 冒烟
         shell: bash
         run: |
-          set -euo pipefail
+          set -eu
           CLI="$GITHUB_WORKSPACE/bin/cli.mjs"
-          rm -rf "$RUNNER_TEMP/smoke" && mkdir -p "$RUNNER_TEMP/smoke"
+          rm -rf "$RUNNER_TEMP/smoke"; mkdir -p "$RUNNER_TEMP/smoke"
           cd "$RUNNER_TEMP/smoke"
+
+          fail() { echo "✗ $1"; shift; [ $# -gt 0 ] && echo "$1"; exit 1; }
 
           node "$CLI" init --name smoke
           node "$CLI" join alice --role 甲方
           node "$CLI" join bob --role 乙方
 
           node "$CLI" send bob --peer alice -s "字段改完了" -b "user.id 从 int 变 string"
-          node "$CLI" recv --peer bob --json | grep -q "字段改完了"
+
+          # 不要用 `node ... | grep -q`：grep -q 一匹配就退出，上游 node 吃 EPIPE
+          # 变成非 0，配上 pipefail 整条命令就成了假失败。
+          # bash 的 case 只做字符串匹配、不起子进程，没有这个坑。
+          recv=$(node "$CLI" recv --peer bob --json)
+          case "$recv" in *字段改完了*) ;; *) fail "recv 没拿到消息" "$recv" ;; esac
 
           node "$CLI" state bob --peer bob --phase blocked --blockers "等接口定稿"
-          node "$CLI" state bob --peer bob --json | grep -q '"phase":"blocked"'
+          st=$(node "$CLI" state bob --peer bob --json)
+          case "$st" in *'"blocked"'*) ;; *) fail "state 没写进去" "$st" ;; esac
 
           node "$CLI" group create pipeline
           node "$CLI" group add pipeline alice
           node "$CLI" group add pipeline bob
           node "$CLI" send '#pipeline' --peer alice -s "广播"
-          node "$CLI" recv --peer bob --json | grep -q "广播"
+          bc=$(node "$CLI" recv --peer bob --json)
+          case "$bc" in *广播*) ;; *) fail "组广播没拿到" "$bc" ;; esac
 
-          node "$CLI" log | grep -q "\[态\]"
+          lg=$(node "$CLI" log)
+          case "$lg" in *"[态]"*) ;; *) fail "log 里没有状态事件" "$lg" ;; esac
+
           node "$CLI" doctor
+          echo "✓ 冒烟通过"
