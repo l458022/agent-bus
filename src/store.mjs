@@ -217,15 +217,22 @@ const SYNC_HINTS = ['onedrive', 'dropbox', 'icloud', 'google drive', 'googledriv
  * 而这类环境最典型的症状就是「偶发丢消息」，事后根本查不出来。
  */
 export function detectRiskyVolume(path) {
-  const p = resolve(path);
+  const raw = String(path);
+  // UNC 必须在 resolve 之前判：resolve('\\\\server\\share') 会把它当**相对路径**
+  // 拼到当前目录后面，于是「是不是 UNC」这个信息在第一步就丢了。
+  // POSIX 上尤其明显 —— 那里 \\server\share 本来就只是个合法文件名。
+  if (raw.startsWith('\\\\') || raw.startsWith('//')) {
+    return 'UNC 网络路径 —— link / rename 的原子性取决于服务端实现，可能偶发丢消息';
+  }
+  const p = resolve(raw);
   const lower = p.toLowerCase();
   for (const hint of SYNC_HINTS) {
-    if (lower.includes(hint)) return `路径里含 "${hint}"，多半是同步盘 —— rename 不保证原子，可能偶发丢消息`;
+    if (lower.includes(hint)) return `路径里含 "${hint}"，多半是同步盘 —— link 不保证原子，可能偶发丢消息`;
   }
-  if (p.startsWith(`\\\\`)) return 'UNC 网络路径 —— rename 的原子性取决于服务端实现，可能偶发丢消息';
+  if (p.startsWith(`\\\\`)) return 'UNC 网络路径 —— link / rename 的原子性取决于服务端实现，可能偶发丢消息';
   if (process.platform !== 'win32') {
     // 非 Windows 上唯一可移植的近似：看挂载点有没有明显是网络的
-    if (/^\/(net|mnt)\//i.test(p)) return '路径看起来在 /net 或 /mnt 下，可能是网络挂载 —— rename 不保证原子';
+    if (/^\/(net|mnt)\//i.test(p)) return '路径看起来在 /net 或 /mnt 下，可能是网络挂载 —— link 不保证原子';
   }
   return null;
 }

@@ -438,8 +438,12 @@ describe('环境体检', () => {
     assert.match(B.detectRiskyVolume(join('C:', 'Users', 'x', 'Dropbox', 'proj')), /同步盘/);
   });
 
-  test('UNC 路径报警', () => {
+  // 这两条在不同平台上会走不同分支，所以两种写法都测。
+  // \\server\share 在 POSIX 上只是合法文件名，靠 resolve 之后再看前缀是判不出来的
+  // —— 那正是曾经在 ubuntu / macos 上挂掉的原因。
+  test('UNC 路径报警（含 POSIX 上的 // 写法）', () => {
     assert.match(B.detectRiskyVolume('\\\\server\\share\\proj'), /UNC/);
+    assert.match(B.detectRiskyVolume('//server/share/proj'), /UNC/);
   });
 });
 

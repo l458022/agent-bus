@@ -1,5 +1,9 @@
 # agent-bus
 
+[![CI](https://github.com/l458022/agent-bus/actions/workflows/ci.yml/badge.svg)](https://github.com/l458022/agent-bus/actions/workflows/ci.yml)
+[![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![node](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](package.json)
+
 一台机器上的几个 AI agent，各自在自己的目录里干活，互相看不见。
 **agent-bus 就是它们之间的那根线。**
 
