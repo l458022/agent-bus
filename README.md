@@ -449,6 +449,20 @@ npm test
 
 ---
 
+## DSH 面板
+
+`plugins/dsh-panel` 把群组搬进 DeepSeek Harness 的侧栏：左侧栏多一个「群组」图标，
+点开能看见每个群里有谁、各自在干什么（phase 和当前在做的事），
+并且直接把工作区里的项目拉进群 —— 项目是自动发现的，不用手填。
+
+它**不存任何东西**：读写的还是 `.agent-bus/` 那一套文件，和 CLI、MCP 是同一份。
+面板里建的群，`agent-bus group ls` 立刻能看到，反过来也一样。
+
+只对 DSH 有效 —— 用的是 DSH 的插槽系统，别的宿主没有这套东西。
+装法和边界见 [plugins/dsh-panel/README.md](plugins/dsh-panel/README.md)。
+
+---
+
 ## 示例
 
 `examples/overlay-to-film.mjs` 是一个真实的跨项目协作案例：

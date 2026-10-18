@@ -1,0 +1,9 @@
+# bundle patch for dsh-plugin-agent-bus
+# 作为 profile bundle 层应用：在 roster 里插入它自己那一行。
+- insert:
+    - id: agent-bus-ui
+      name: dsh-plugin-agent-bus
+      config:
+        # 换成你自己的 agent-bus 根目录 —— 就是有 bus.json 的那一层。
+        root: 'C:/path/to/your/workspace'
+        peer: dsh
