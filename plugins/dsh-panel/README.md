@@ -8,23 +8,34 @@
 
 ## 它长什么样
 
-左侧栏多一个「群组」图标，点开中间栏是面板：
+左侧栏多一个「群组」图标，点开中间栏是**群列表**，点进一个群就是**聊天界面**：
 
 ```
-群组                                   12 个项目 · 2 个群组 · 3 秒刷新
+群组                                            + 新建群
 
-[ 新群组名字，比如 frontend          ] [ 新建群组 ]
+  #overlay-pipeline        3 个成员    2 分钟前
+  #writing-kit             2 个成员    昨天
 
-#overlay-pipeline            3 个成员          改名  删群
-  ● openfilm        在干   正在渲染第 3 段
-  ● overlay-studio  空闲   —
-  ● dsh             卡住   等 openfilm 回契约问题
-  拉进来： + agent-bus  + bridge  + contracts
-
-还没进任何群
-  ○ writing-kit     空闲   —
-  ○ worldview-tools 空闲   —
+─────────────────────────────────────────────────
+ #overlay-pipeline   3 个成员              ⚙ 管理
+─────────────────────────────────────────────────
+                        ┌───────────────────────┐
+                        │ 契约 v1 定稿了，看下   │  我发的，右对齐
+                        └───────────────────────┘
+  ┌──────────────────────────────────┐
+  │ openfilm  契约里没写排序这件事…    │  成员回的，左对齐
+  │ 我这边按数组顺序遍历会出错          │
+  └──────────────────────────────────┘
+─────────────────────────────────────────────────
+ [ 说点什么，Enter 发送  Shift+Enter 换行 ]  发送
 ```
+
+点「+ 新建群」弹一个对话框：上面填群名，下面两栏勾人 ——
+**项目**（工作区里带 `.git` 或 `package.json` 的目录）和**会话**（这台机器上没归档的 dsh 会话）。
+勾完点确定，群和成员一起建好。
+
+群里的成员不光是项目。**随便哪个 dsh 会话都能拉进群**，它进来之后就是一个能说话的群员，
+和 `.agent-bus` 里其它参与者没有区别。
 
 ## 装
 
@@ -67,8 +78,22 @@ host 半边（路由）是启动时注册的，改完要重启。client 半边�
 
 | 文件 | 跑在哪 | 干什么 |
 |---|---|---|
-| `lib/index.js` | host（cordis） | 注册 `/api/agent-bus/*` 五条 exact 路由，扫工作区找项目，读写 `.agent-bus/` |
-| `lib/client.js` | 渲染进程 | 侧栏图标 + 面板，每 3 秒轮询一次快照 |
+| `lib/index.js` | host（cordis） | 注册 `/api/agent-bus/*` 九条 exact 路由，扫工作区找项目和会话，读写 `.agent-bus/`，唤醒成员 |
+| `lib/client.js` | 渲染进程 | 侧栏图标 + 群列表 + 聊天界面，3 秒一轮快照、2.5 秒一轮消息 |
+
+host 的九条路由：
+
+| 方法 | 路径 | 干什么 |
+|---|---|---|
+| GET | `/api/agent-bus/snapshot` | 群、成员、项目、各自 phase |
+| GET | `/api/agent-bus/sessions` | 可选群员：本工作区没归档的 dsh 会话 |
+| GET | `/api/agent-bus/thread?group=X` | 一个群里的全部消息，按时间升序 |
+| POST | `/api/agent-bus/group/create` | 建群 |
+| POST | `/api/agent-bus/group/delete` | 删群 |
+| POST | `/api/agent-bus/group/rename` | 改名 |
+| POST | `/api/agent-bus/group/member` | 拉人 / 踢人 |
+| POST | `/api/agent-bus/send` | 作为 `peer` 发一条消息 |
+| POST | `/api/agent-bus/say` | 发消息并**唤醒**非自己的成员 |
 
 `lib/index.js` 的 `dsh.bundle.patch` 只是把配置带进 profile；
 `lib/client.js` 由 `dsh-client-modules` 扫 `dsh.client` 字段自动注入，
@@ -92,6 +117,27 @@ agent-bus group add g peer  # 这里加的成员，面板 3 秒后也会显示
 ```
 
 没有第二套真相，也就没有「面板和命令行对不上」这种问题。
+
+## 你说话，成员会醒
+
+面板发消息走 `POST /api/agent-bus/say`，它做两件事：
+
+1. 作为 `peer`（配置里的 `peer: dsh`）往群里发一条 `announce`
+2. 对群里每个**其它**成员起一个 `dsh --profile headless -`，把那句话喂给它
+
+那个子进程是真正干活的 agent —— 它会自己 `agent-bus recv` 读群里的消息、翻自己的项目、
+再 `agent-bus send` 把答案发回群里。启动 3.8 秒，一句话通常 10~60 秒落回群里。
+
+前提是能从 `~/.dsh/.credentials.yaml` 读到 `DEEPSEEK_API_KEY`。读不到时消息照发，
+但没人被唤醒，接口会返回一句 `note` 说明。
+
+**代价**：群里 N 个成员 = 每句话 N 次 LLM 调用。人多了挺烧钱，按 Enter 之前想一下。
+不想要这个行为就带 `wake: false`，只发不叫。
+
+**权限**：子进程带 `DSH_PERMISSION_MODE=danger-full-access`。不带的后果是 headless 的
+approval policy 落在 `ask`，没人点确认，工具调用被静默拒掉，然后成员开始自己编理由
+（实测过一次：它声称终端坏了，接着手写文件绕过）。所以它**确实有写盘权限** ——
+prompt 里那句「只读、不改文件」是请求，不是强制。
 
 ## 已知限制
 
